@@ -40,7 +40,8 @@ class Grid:
         plt.gca().spines['bottom'].set_visible(False)
         plt.gca().spines['left'].set_visible(False)
 
-        desktop_path = os.path.join(os.environ['USERPROFILE'], 'Desktop')
-        file_path = os.path.join(desktop_path, filename)
-        plt.savefig(f'{file_path}.png', bbox_inches='tight', pad_inches=0)
-        plt.savefig(f'{file_path}.pdf', bbox_inches='tight', pad_inches=0)
+        results_directory_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'results')
+        file_path_png = os.path.join(results_directory_path, 'png', f'{filename}.png')
+        file_path_pdf = os.path.join(results_directory_path, 'pdf', f'{filename}.pdf')
+        plt.savefig(file_path_png, bbox_inches='tight', pad_inches=0)
+        plt.savefig(file_path_pdf, bbox_inches='tight', pad_inches=0)

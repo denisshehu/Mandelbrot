@@ -1,5 +1,11 @@
+import joblib
+
 from models.cell import Cell
 from models.grid import Grid
+
+
+def create_cell(center, cell_size):
+    return Cell(center, cell_size)
 
 
 def generate_grid(n_rows, n_columns, origin, width):
@@ -13,5 +19,8 @@ def generate_grid(n_rows, n_columns, origin, width):
     ys = sorted(n_columns * [y_bottom_left + (i + 0.5) * cell_size for i in range(n_rows)])
     centers = zip(xs, ys)
 
-    cells = [Cell(center, cell_size) for center in centers]
+    cells = joblib.Parallel(n_jobs=-1)(
+        joblib.delayed(create_cell)(center, cell_size) for center in centers
+    )
+
     return Grid(cells, cell_size, n_rows, n_columns, x_bottom_left, y_bottom_left)
