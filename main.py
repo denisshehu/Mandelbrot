@@ -4,10 +4,10 @@ from functions import *
 
 n_rows = 1080
 n_columns = 1920
-origin = (-0.75, 0)
-width = 4.2
-# origin = (0.16125, 0.638438)
-# width = 0.005
+# origin = (-0.75, 0)
+# width = 4.2
+origin = (0.16125, 0.638438)
+width = 0.05
 filename = f'{n_columns}x{n_rows}'
 
 grid = generate_grid(n_rows, n_columns, origin, width)
