@@ -1,47 +1,45 @@
 import math
 
 from matplotlib import colors
-from matplotlib.colors import LinearSegmentedColormap as LSC
 
 
 class Cell:
 
-    def __init__(self, center, size):
+    def __init__(self, center, size, max_n_iterations, radius, colormap):
         self._center = center
         self._size = size
-        self._color = self._compute_color()
+        self._max_n_iterations = max_n_iterations
+        self._radius = radius
+        self._colormap = colormap
+
+        self._n_iterations = self._get_n_iterations()
+        self._color = self._get_color()
 
     @property
     def color(self):
         return self._color
 
-    def _compute_color(self):
+    def _get_n_iterations(self):
         x0, y0 = self._center
         x, y = 0, 0
-        max_iteration = 1000
-        radius = 2 ** 8
 
         iteration = 0
-        while x ** 2 + y ** 2 <= radius ** 2 and iteration < max_iteration:
+        while x ** 2 + y ** 2 <= self._radius ** 2 and iteration < self._max_n_iterations:
             x_temporary = x ** 2 - y ** 2 + x0
             y = 2 * x * y + y0
             x = x_temporary
             iteration += 1
 
-        if iteration < max_iteration:
+        if iteration < self._max_n_iterations:
             log_zn = math.log(x ** 2 + y ** 2) / 2
             nu = math.log(log_zn / math.log(2)) / math.log(2)
             iteration += 1 - nu
 
-        dark_blue = tuple(i / 255 for i in (0, 7, 100))
-        light_blue = tuple(i / 255 for i in (32, 107, 203))
-        white = tuple(i / 255 for i in (255, 255, 255))
-        orange = tuple(i / 255 for i in (255, 170, 0))
-        black = tuple(i / 255 for i in (0, 0, 0))
-        colormap = LSC.from_list('colormap',
-                                 list(zip([0.0, 0.25, 0.5, 0.75, 1.0], [dark_blue, light_blue, white, orange, black])))
-        norm = colors.LogNorm(1, max_iteration)
-        return colormap(norm(iteration))
+        return iteration
+
+    def _get_color(self):
+        norm = colors.LogNorm(1, self._max_n_iterations)
+        return self._colormap(norm(self._n_iterations))
 
     def get_corners(self):
         x_center, y_center = self._center
