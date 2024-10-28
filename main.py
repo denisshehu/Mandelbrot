@@ -1,20 +1,30 @@
-import winsound
+from sympy import divisors
 
-from models.colormap import Colormap
-from models.grid import Grid
+from config import *
+from models.image import Image
 
-n_rows = 1080
-n_columns = 1920
-origin = (-0.75, 0)
-width = 4.2
-# origin = (0.16125, 0.638438)
-# width = 0.05
-max_n_iterations = 1000
-radius = 2 ** 8
-colormap = Colormap.DEFAULT.value
-filename = 'Default'
 
-grid = Grid(n_rows, n_columns, origin, width, max_n_iterations, radius, colormap)
-grid.draw(f'{filename} ({n_columns}x{n_rows})')
+def check_cell_size():
+    common_divisors = set(divisors(image_width)).intersection(divisors(image_height))
 
-winsound.Beep(500, 3000)
+    if not cell_size in common_divisors:
+        valid_divisors = ', '.join(map(str, sorted(common_divisors)))
+        raise ValueError(f'The cell size ({cell_size}) is not valid for image size {image_width}x{image_height}.\n'
+                         f'The only valid cell sizes are {valid_divisors}.')
+
+
+def main():
+    try:
+        check_cell_size()
+
+        image = Image(
+            image_width, image_height, cell_size, center, plane_width, max_n_iterations, radius, colormap, filename
+        )
+        image.generate()
+
+    except ValueError as error:
+        print(error)
+
+
+if __name__ == '__main__':
+    main()

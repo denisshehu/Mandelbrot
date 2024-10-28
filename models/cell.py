@@ -4,6 +4,7 @@ from matplotlib import colors
 
 
 class Cell:
+    __slots__ = ['_center', '_size', '_max_n_iterations', '_radius', '_colormap', '_n_iterations', '_color']
 
     def __init__(self, center, size, max_n_iterations, radius, colormap):
         self._center = center

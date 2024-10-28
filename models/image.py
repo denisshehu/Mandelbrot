@@ -8,46 +8,58 @@ from matplotlib.collections import PolyCollection
 from models.cell import Cell
 
 
-class Grid:
+class Image:
 
-    def __init__(self, n_rows, n_columns, origin, width, max_n_iterations, radius, colormap):
-        self._n_rows = n_rows
-        self._n_columns = n_columns
+    def __init__(self, image_width, image_height, cell_size, center, plane_width, max_n_iterations, radius, colormap,
+                 filename):
+        self._image_width = image_width
+        self._image_height = image_height
 
-        self._cell_size = width / n_columns
-        self._x_bottom_left = origin[0] - width / 2
-        height = self._cell_size * n_rows
-        self._y_bottom_left = origin[1] - height / 2
+        self._cell_size_in_pixels = cell_size
+        self._cell_size_in_plane = cell_size * plane_width / image_width
+
+        self._plane_width = plane_width
+        self._plane_height = plane_width * image_height / image_width
+
+        self._x_bottom_left = center[0] - plane_width / 2
+        self._y_bottom_left = center[1] - self._plane_height / 2
+
+        self._filename = filename
 
         self._cells = self._create_cells(max_n_iterations, radius, colormap)
 
     def _create_cell(self, center, max_n_iterations, radius, colormap):
-        return Cell(center, self._cell_size, max_n_iterations, radius, colormap)
+        return Cell(center, self._cell_size_in_plane, max_n_iterations, radius, colormap)
 
     def _create_cells(self, max_n_iterations, radius, colormap):
-        xs = self._n_rows * [self._x_bottom_left + (i + 0.5) * self._cell_size for i in range(self._n_columns)]
-        ys = sorted(self._n_columns * [self._y_bottom_left + (i + 0.5) * self._cell_size for i in range(self._n_rows)])
+        n_rows = int(self._image_height / self._cell_size_in_pixels)
+        n_columns = int(self._image_width / self._cell_size_in_pixels)
+
+        xs = n_rows * [
+            self._x_bottom_left + (i + 0.5) * self._cell_size_in_plane for i in range(n_columns)
+        ]
+        ys = sorted(n_columns * [
+            self._y_bottom_left + (i + 0.5) * self._cell_size_in_plane for i in range(n_rows)
+        ])
         centers = zip(xs, ys)
 
         start_time = time.time()
-        print('Creating cells...', end='', flush=True)
+        print('Coloring cells...', end='', flush=True)
 
         cells = joblib.Parallel(n_jobs=-1)(
             joblib.delayed(self._create_cell)(center, max_n_iterations, radius, colormap) for center in centers
         )
 
         elapsed_time = time.time() - start_time
-        print(f'\rCells created. ({elapsed_time:.2f} seconds)')
+        print(f'\rCells colored. ({elapsed_time:.2f} seconds)')
 
         return cells
 
-    def draw(self, filename):
+    def generate(self):
         correction = 1.299
-        width = 1920
-        height = 1080
         dpi = 100
 
-        plt.figure(figsize=(correction * width / dpi, correction * height / dpi), dpi=dpi)
+        plt.figure(figsize=(correction * self._image_width / dpi, correction * self._image_height / dpi), dpi=dpi)
         plt.gca().set_aspect('equal')
 
         start_time = time.time()
@@ -65,10 +77,10 @@ class Grid:
         elapsed_time = time.time() - start_time
         print(f'\rImage generated. ({elapsed_time:.2f} seconds)')
 
-        x_max = self._x_bottom_left + self._cell_size * self._n_columns
+        x_max = self._x_bottom_left + self._plane_width
         plt.xlim(self._x_bottom_left, x_max)
 
-        y_max = self._y_bottom_left + self._cell_size * self._n_rows
+        y_max = self._y_bottom_left + self._plane_height
         plt.ylim(self._y_bottom_left, y_max)
 
         plt.xticks(list())
@@ -78,7 +90,8 @@ class Grid:
             spine.set_visible(False)
 
         images_directory_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'images')
-        file_path = os.path.join(images_directory_path, f'{filename}.png')
+        file_path = os.path.join(images_directory_path,
+                                 f'{self._filename} ({self._image_width}x{self._image_height}).png')
 
         start_time = time.time()
         print('Saving image...', end='', flush=True)
