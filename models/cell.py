@@ -4,7 +4,6 @@ from matplotlib import colors
 
 
 class Cell:
-    __slots__ = ['_center', '_size', '_max_n_iterations', '_radius', '_colormap', '_n_iterations', '_color']
 
     def __init__(self, center, size, max_n_iterations, radius, colormap):
         self._center = center
@@ -12,15 +11,26 @@ class Cell:
         self._max_n_iterations = max_n_iterations
         self._radius = radius
         self._colormap = colormap
+        self._n_iterations = None
+        self._color = None
 
-        self._n_iterations = self._get_n_iterations()
-        self._color = self._get_color()
+    @property
+    def n_iterations(self):
+        return self._n_iterations
+
+    @n_iterations.setter
+    def n_iterations(self, n_iterations):
+        self._n_iterations = n_iterations
 
     @property
     def color(self):
         return self._color
 
-    def _get_n_iterations(self):
+    @color.setter
+    def color(self, color):
+        self._color = color
+
+    def get_n_iterations(self):
         x0, y0 = self._center
         x, y = 0, 0
 
@@ -38,8 +48,8 @@ class Cell:
 
         return iteration
 
-    def _get_color(self):
-        norm = colors.LogNorm(1, self._max_n_iterations)
+    def get_color(self, min_n_iterations):
+        norm = colors.LogNorm(min_n_iterations, self._max_n_iterations)
         return self._colormap(norm(self._n_iterations))
 
     def get_corners(self):
