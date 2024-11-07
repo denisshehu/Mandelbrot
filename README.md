@@ -1,7 +1,7 @@
 # Mandelbrot
 
-![Mandelbrot set](images/Default%20(1920x1080).png)
+![Mandelbrot set](images/1.%20Mandelbrot%20(3840x2160).png)
 
-![Focused](images/Focused%20(1920x1080).png)
+![Focused](images/2.%20Flower%20(3840x2160).png)
 
-![Seahorse](images/Seahorse%20(1920x1080).png)
+![Seahorse](images/3.%20Seahorse%20(3840x2160).png)

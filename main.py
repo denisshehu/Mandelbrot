@@ -10,6 +10,7 @@ def main():
         for center, plane_width, filename in zip(centers, plane_widths, filenames):
             image = Image(image_width, image_height, cell_size, center, plane_width)
             image.generate(max_n_iterations, radius, colormap, filename)
+
     except ValueError as error:
         print(error)
 

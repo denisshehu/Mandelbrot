@@ -39,7 +39,7 @@ class Image:
             elapsed_time += run_and_time(
                 function, *arguments, start_string=start_string, end_string=end_string
             )
-        print(f'\nTotal runtime: {elapsed_time:.2f} seconds ({(elapsed_time / 60):.2f} minutes)\n\n\n')
+        print(f'Total runtime: {elapsed_time:.2f} seconds ({(elapsed_time / 60):.2f} minutes)\n')
 
     def _create_cells(self, max_n_iterations, radius, colormap):
         n_rows = int(self._image_height / self._cell_size_in_pixels)
