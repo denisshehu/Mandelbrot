@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="An interactive Mandelbrot set explorer that renders on the GPU with WebGL 2, zooms far beyond the precision of 64-bit floating point and downloads PNG images up to 8K." />
+    <meta name="theme-color" content="#05070f" />
+    <title>Mandelbrot explorer</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <h1 class="visually-hidden">Mandelbrot explorer</h1>
+    <canvas id="canvas" aria-label="The Mandelbrot set. Drag to pan, scroll or pinch to zoom."></canvas>
+
+    <div class="hud" aria-live="polite">
+      <span class="pill glass"><span class="label">Zoom:</span> <span class="value" id="hud-zoom">1×</span></span>
+      <span class="pill glass"><span class="label">Iterations:</span> <span class="value" id="hud-iterations">1,000</span></span>
+      <span class="pill glass"><span class="label">Render:</span> <span class="value" id="hud-progress"></span><span class="spinner" id="hud-spinner"></span></span>
+    </div>
+
+    <div class="notices">
+      <div class="notice glass" id="notice" role="status" hidden>Maximum zoom reached</div>
+      <div class="notice glass" id="slow-notice" role="status" hidden>
+        Slow render
+        <button type="button" class="info" aria-label="About slow rendering" data-tip="This view requires many iterations and will take some time to render. To speed it up, open the rendering settings to increase the cell size or lower the maximum iterations. Larger cells reduce the resolution, and fewer iterations remove detail near the boundary of the set. A wider view also renders faster." data-tip-link="open the rendering settings" data-tip-opens="rendering-popover">i</button>
+      </div>
+    </div>
+    <div class="tip glass" id="tip" role="tooltip" hidden></div>
+
+    <nav class="dock" aria-label="Controls">
+      <button type="button" class="reset-view glass" id="reset-view" data-label="Reset view" aria-label="Reset view" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7M6 9.5V20h4.5v-5.5h3V20H18V9.5" /></svg>
+      </button>
+      <button type="button" class="glass" data-label="Presets" aria-label="Presets" aria-expanded="false" aria-controls="presets-popover">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" /></svg>
+      </button>
+      <button type="button" class="glass" data-label="Location" aria-label="Location" aria-expanded="false" aria-controls="location-popover">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" /><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4" /><circle cx="12" cy="12" r="1" class="fill" /></svg>
+      </button>
+      <button type="button" class="glass" data-label="Colors" aria-label="Colors" aria-expanded="false" aria-controls="colors-popover">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.9-.8 1.9-1.8 0-.5-.2-.9-.5-1.2-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z" /><circle cx="7.5" cy="11" r="1" class="fill" /><circle cx="10" cy="7.2" r="1" class="fill" /><circle cx="14.5" cy="7.2" r="1" class="fill" /><circle cx="17" cy="11" r="1" class="fill" /></svg>
+      </button>
+      <button type="button" class="glass" data-label="Rendering" aria-label="Rendering" aria-expanded="false" aria-controls="rendering-popover">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6h10M18.5 6h2M3.5 12h4M12.5 12h8M3.5 18h12M20.5 18h0" /><circle cx="16" cy="6" r="2.2" /><circle cx="10" cy="12" r="2.2" /><circle cx="18" cy="18" r="2.2" /></svg>
+      </button>
+      <button type="button" class="glass" data-label="Download" aria-label="Download" aria-expanded="false" aria-controls="download-popover">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4 16.5v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /></svg>
+      </button>
+      <button type="button" class="glass" data-label="About" aria-label="About" aria-expanded="false" aria-controls="about-popover">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5.5M12 7.5v.01" /></svg>
+      </button>
+    </nav>
+
+    <section class="popover glass" id="presets-popover" role="dialog" aria-labelledby="presets-title" hidden>
+      <h2 id="presets-title">Presets</h2>
+      <div class="presets" id="presets"></div>
+    </section>
+
+    <section class="popover glass" id="location-popover" role="dialog" aria-labelledby="location-title" hidden>
+      <h2 id="location-title">Location</h2>
+      <form id="location-form" class="stack" novalidate>
+        <div class="stack">
+          <div class="field">
+            <div class="field-label"><label for="center-x">Center (real part)</label><button type="button" class="info" aria-label="About the real part" data-tip="Any number of digits is accepted. A value with a long run of zeros can be written as a sum, for example 1+6.2e‑251.">i</button></div>
+            <input id="center-x" spellcheck="false" autocomplete="off" aria-describedby="center-x-error" />
+            <p class="field-error" id="center-x-error" hidden></p>
+          </div>
+          <div class="field">
+            <div class="field-label"><label for="center-y">Center (imaginary part)</label><button type="button" class="info" aria-label="About the imaginary part" data-tip="Any number of digits is accepted. A value with a long run of zeros can be written as a sum, for example 1+6.2e‑251.">i</button></div>
+            <input id="center-y" spellcheck="false" autocomplete="off" aria-describedby="center-y-error" />
+            <p class="field-error" id="center-y-error" hidden></p>
+          </div>
+          <div class="field">
+            <div class="field-label"><label for="plane-width">Width</label><button type="button" class="info" aria-label="About the width" data-tip="The width of the visible region of the complex plane. Smaller values zoom in further.">i</button></div>
+            <input id="plane-width" spellcheck="false" autocomplete="off" aria-describedby="plane-width-error" />
+            <p class="field-error" id="plane-width-error" hidden></p>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="submit" class="primary">Go</button>
+          <button type="button" id="copy-link">Copy link</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="popover glass" id="colors-popover" role="dialog" aria-labelledby="colors-title" hidden>
+      <h2 id="colors-title">Colors</h2>
+      <div class="colormaps" id="colormaps" role="radiogroup" aria-labelledby="colors-title"></div>
+    </section>
+
+    <section class="popover glass" id="rendering-popover" role="dialog" aria-labelledby="rendering-title" hidden>
+      <h2 id="rendering-title">Rendering</h2>
+      <div class="stack">
+        <div class="field">
+          <div class="field-label"><label for="iterations">Maximum iterations</label><button type="button" class="info" aria-label="About maximum iterations" data-tip="The number of iterations computed for each point before it is treated as part of the set. Higher values reveal finer detail near the boundary but take longer to render.">i</button></div>
+          <input id="iterations" type="number" min="10" max="10000000" step="1" inputmode="numeric" />
+          <label class="switch"><input id="auto-iterations" type="checkbox" role="switch" /><span class="track" aria-hidden="true"></span>Increase automatically with zoom</label>
+        </div>
+        <div class="field">
+          <div class="field-label"><label for="escape-radius">Escape radius</label><button type="button" class="info" aria-label="About the escape radius" data-tip="The distance from the origin at which a point is considered to have escaped. Larger values produce smoother color gradients.">i</button></div>
+          <input id="escape-radius" type="number" min="2" max="100000" step="1" inputmode="numeric" />
+        </div>
+        <div class="field">
+          <div class="field-label"><span id="cell-size-label">Cell size</span><button type="button" class="info" aria-label="About cell size" data-tip="The size of each square block of pixels that shares one computed value. Larger cells render faster but look pixelated.">i</button></div>
+          <div class="options" role="radiogroup" aria-labelledby="cell-size-label">
+            <label class="option"><input type="radio" name="cell-size" value="1" checked /><span>1 px</span></label>
+            <label class="option"><input type="radio" name="cell-size" value="2" /><span>2 px</span></label>
+            <label class="option"><input type="radio" name="cell-size" value="4" /><span>4 px</span></label>
+            <label class="option"><input type="radio" name="cell-size" value="8" /><span>8 px</span></label>
+            <label class="option"><input type="radio" name="cell-size" value="16" /><span>16 px</span></label>
+            <label class="option"><input type="radio" name="cell-size" value="32" /><span>32 px</span></label>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" id="rendering-reset">Reset to defaults</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="popover glass" id="download-popover" role="dialog" aria-labelledby="download-title" hidden>
+      <h2 id="download-title">Download</h2>
+      <div class="stack">
+        <div class="field">
+          <div class="field-label"><span id="resolution-label">Resolution</span></div>
+          <div class="options" role="radiogroup" aria-labelledby="resolution-label">
+            <label class="option"><input type="radio" name="resolution" value="1920x1080" /><span>Full HD<small>1920 × 1080</small></span></label>
+            <label class="option"><input type="radio" name="resolution" value="2560x1440" /><span>QHD<small>2560 × 1440</small></span></label>
+            <label class="option"><input type="radio" name="resolution" value="screen" /><span>Window<small>Current size</small></span></label>
+            <label class="option"><input type="radio" name="resolution" value="3840x2160" checked /><span>4K<small>3840 × 2160</small></span></label>
+            <label class="option"><input type="radio" name="resolution" value="5120x2880" /><span>5K<small>5120 × 2880</small></span></label>
+            <label class="option"><input type="radio" name="resolution" value="7680x4320" /><span>8K<small>7680 × 4320</small></span></label>
+            <label class="option wide"><input type="radio" name="resolution" value="custom" /><span>Custom<small>Any width and height</small></span></label>
+          </div>
+        </div>
+        <div class="pair" id="custom-size" hidden>
+          <div class="field"><div class="field-label"><label for="custom-width">Width</label></div><input id="custom-width" type="number" min="16" max="16384" value="3000" inputmode="numeric" /></div>
+          <div class="field"><div class="field-label"><label for="custom-height">Height</label></div><input id="custom-height" type="number" min="16" max="16384" value="2000" inputmode="numeric" /></div>
+        </div>
+        <div class="progress" id="export-progress" hidden>
+          <div class="bar"><div id="export-bar"></div></div>
+          <p id="export-label"></p>
+        </div>
+        <div class="actions">
+          <button type="button" class="primary" id="export">Download PNG</button>
+          <button type="button" id="export-cancel" hidden>Cancel</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="popover glass" id="about-popover" role="dialog" aria-labelledby="about-title" hidden>
+      <h2 id="about-title">Mandelbrot explorer</h2>
+      <div class="stack about">
+        <p>An interactive explorer for the Mandelbrot set. It renders in your browser on your graphics card with WebGL 2, and uses perturbation theory with arbitrary-precision arithmetic to zoom far beyond the limits of 64-bit floating point. Any view can be downloaded as a high-resolution PNG.</p>
+        <dl class="controls">
+          <dt>Pan</dt><dd>Drag or use the arrow keys</dd>
+          <dt>Zoom</dt><dd>Scroll, pinch or press + and −</dd>
+          <dt>Zoom in</dt><dd>Double-click</dd>
+          <dt>Zoom out</dt><dd>Shift + double-click</dd>
+        </dl>
+        <div class="actions">
+          <a class="button" href="https://github.com/denisshehu/Mandelbrot">View source on GitHub</a>
+        </div>
+      </div>
+    </section>
+
+    <div class="fatal" id="fatal" hidden></div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
